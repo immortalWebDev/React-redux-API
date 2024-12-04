@@ -3,6 +3,8 @@ import { createSlice } from "@reduxjs/toolkit";
 const TasksSlice = createSlice({
   name: "tasks",
   initialState: {
+    isLoading:false,
+    isError:false,
     taskList: [],
   },
   reducers: {
@@ -19,8 +21,14 @@ const TasksSlice = createSlice({
     deleteTask: (state, action) => {
       state.taskList = state.taskList.filter((task) => task.id !== action.payload);
     },
+    setLoading: (state,action) => {
+      state.isLoading = action.payload
+    },
+    setError:(state,action) => {
+      state.isError = action.payload
+    }
   },
 });
 
-export const { setTasks, addTask, updateTask, deleteTask } = TasksSlice.actions;
+export const { setTasks, addTask, updateTask, deleteTask,setLoading,setError } = TasksSlice.actions;
 export default TasksSlice.reducer;

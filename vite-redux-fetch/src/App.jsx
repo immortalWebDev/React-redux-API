@@ -5,6 +5,8 @@ import {
   updateTask,
   deleteTask,
   setTasks,
+  setLoading,
+  setError,
 } from "./redux/slice/tasksSlice";
 
 /*
@@ -27,6 +29,10 @@ const App = () => {
   const [editId, setEditId] = useState(null); 
 
   const tasks = useSelector((state) => state.tasks.taskList); 
+  const isLoading = useSelector((state) => state.tasks.isLoading)
+  const isError = useSelector((state) => state.tasks.isError)
+
+
   const dispatch = useDispatch();
 
   const API_URL = import.meta.env.VITE_MOCKAPI_URL
@@ -35,12 +41,16 @@ const App = () => {
   useEffect(() => {
     const fetchTasks = async () => {
       try {
+        dispatch(setLoading(true))
         const response = await fetch(API_URL);
         const data = await response.json();
         // console.log(data)
         dispatch(setTasks(data)); // Save to Redux
       } catch (error) {
         console.error("Error fetching tasks:", error);
+        dispatch(setError(true))
+      }finally{
+        dispatch(setLoading(false))
       }
     };
     fetchTasks();
@@ -60,16 +70,24 @@ const App = () => {
 
       setBlogName("");
       setBlogImg("");
-      setIsRead("");
       setBlogContent("");
     } catch (error) {
       console.error("Error adding task:", error);
+      dispatch(setError(true))
     }
   };
 
   // Update an existing task
   const handleUpdateTask = async () => {
+
+    if(!blogName || !blogImg || !blogContent)
+    {
+      alert('All filds are important')
+      return
+    }
+
     try {
+      dispatch(setLoading(true))
       const updatedTask = { blogName, blogImg, isRead, blogContent };
       const response = await fetch(`${API_URL}/${editId}`, {
         method: "PUT",
@@ -79,13 +97,18 @@ const App = () => {
       const data = await response.json();
 
       dispatch(updateTask(data)); // Update Redux
+
+      //Resetting input fields
       setBlogName("");
       setBlogImg("");
-      setIsRead("");
       setBlogContent("");
+      setIsRead(false)
       setEditId(null);
     } catch (error) {
       console.error("Error updating task:", error);
+      dispatch(setError(true))
+    }finally{
+    dispatch(setLoading(false))
     }
   };
 
@@ -96,6 +119,7 @@ const App = () => {
       dispatch(deleteTask(id)); // Update Redux
     } catch (error) {
       console.error("Error deleting task:", error);
+      dispatch(setError(true))
     }
   };
 
@@ -110,8 +134,9 @@ const App = () => {
 
       const data = await response.json();
       dispatch(updateTask(data));
-    } catch (err) {
-      console.log("Error");
+    } catch (error) {
+      console.log("Error while updating reading status",error);
+      dispatch(setError(true))
     }
   };
 
@@ -146,21 +171,26 @@ const App = () => {
 
       <hr />
 
+      {isLoading && <h3 style={{textAlign:'center'}}>Loading blogs...</h3>}
+      {isError && <h3 style={{textAlign:'center'}}>Oops, Something went wrong!</h3>}
+
       {/* Display blog tasks */}
-      <ul>
+      {!isLoading && !isError && <ul>
+        <p style={{fontSize: '1rem',fontWeight:'bold'}}>Total blogs: {tasks.length}</p>
         {tasks.map((task) => (
           <li key={task.id}>
             <h4>{task.blogName}</h4>
             <img src={`${task.blogImg}`} alt="image" />
             <p>Status: {task.isRead ? "Completed" : "Pending"}</p>
             <p>{task.blogContent}</p>
+            <div style={{display:"flex",gap:'10px'}}>
             <button onClick={() => handleDeleteTask(task.id)}>Delete</button>
             <button
               onClick={() => {
                 setEditId(task.id);
                 setBlogName(task.blogName);
                 setBlogImg(task.blogImg);
-
+                 setIsRead(task.isRead)
                 setBlogContent(task.blogContent);
               }}
             >
@@ -179,10 +209,11 @@ const App = () => {
                 Done reading
               </button>
             )}
+            </div>
             <hr />
           </li>
         ))}
-      </ul>
+      </ul>}
     </div>
   );
 };
