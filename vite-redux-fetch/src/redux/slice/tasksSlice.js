@@ -185,4 +185,60 @@ syntax:
       fetch logic
   })
 
+  here payloadCreator is payload we pass to dispatch(thunkFuncName(payload)) in component
+
+
+console.log(fetchTasksAsync)
+this gives the thunk function definition
+
+This is because fetchTasksAsync is a function created by createAsyncThunk.
+here createAsyncThunk acts as a function factory
+
+
+console.log(fetchTasksAsync())
+this gives us the return value of thunk function
+which is usually a promise
+
+The promise resolves when the async operation inside the thunk finishes (success or failure).
+
+once that promise is fulfilled then that value is used in
+
+.addCase(fetchTasksAsync.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.taskList = action.payload;
+        })
+
+HERE:
+
+addCase is a method attached to the builder object, 
+it is available in the extraReducers function of a createSlice or createReducer 
+
+this method takes action type or action creator and reducer function as args
+and updates the state based on that 
+
+here,
+
+fetchTasksAsync.fulfilled this is shorthand for 
+"tasks/fetchTasksAsync/fulfilled"
+both will work. but its better to handle it through shorthand
+
+
+
+FLOW:
+
+A user interaction triggers an action
+
+The action is sent to the store using dispatch.
+
+If it's an async action (like createAsyncThunk), middleware intercepts it
+Middleware handles the async logic and dispatches pending, fulfilled, or rejected actions as needed.
+
+The store forwards the action to the relevant reducer (sync) or extra reducer (async).
+Based on the action type (e.g., pending, fulfilled, rejected), the reducer updates the state.
+
+As the reducer updates the state. The new state is recognised by store
+
+Components which are subscribed to store using useSelector automatically re-render
+(because state changed)
+
 */
