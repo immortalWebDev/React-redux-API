@@ -103,7 +103,7 @@ const App = () => {
 
       {isLoading && <h3 style={{ textAlign: "center" }}>Loading blogs...</h3>}
       {isError && (
-        <h3 style={{ textAlign: "center" }}>Oops, Something went wrong!</h3>
+        <h3 style={{ textAlign: "center"}}>{isError}</h3>
       )}
 
       {/* Display blog tasks */}
