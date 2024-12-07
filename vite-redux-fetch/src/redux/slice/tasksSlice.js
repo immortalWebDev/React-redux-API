@@ -1,65 +1,172 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk} from "@reduxjs/toolkit";
+
 
 const API_URL = import.meta.env.VITE_MOCKAPI_URL;
 
 export const fetchTasksAsync = createAsyncThunk(
   "tasks/fetchTasksAsync",
-  async () => {
-    const response = await fetch(API_URL);
-    if (!response.ok) throw new Error("Failed to fetch tasks");
-    return await response.json();
+  async (_,{rejectWithValue}) => { //pass {rejectWithValue} as second arg always
+    //try catch block is recommended for all async tasks
+    try {
+      //Making fetch request (GET)
+      const response = await fetch(API_URL); //GET is default method if not specified
+
+      //If status code is outside 200-299
+      if (!response.ok) {
+        // Throw error with detailed message including status
+        throw new Error(
+          `Failed to fetch data: ${response.statusText} , Status code: ${response.status}`
+        );
+      }
+
+      //NOTE: //if wanna handle 404 or 500 explicitly , you can write separate logic for that
+
+      // Parsing JSON data from response (successfull)
+      const data = await response.json();
+      console.log("from GET: ", data);
+
+      //Returning data to be used by reducers
+      return data;
+    } catch (err) {
+      console.error("Error during fetch operation", err);
+      // throw err; // Re-throw the error if you want it to be caught in a higher-level handler
+
+      // Optionally, you can return a default value to prevent the app from crashing
+      // return []; // Example of returning an empty array as fallback
+
+      return rejectWithValue("Sorry, can't fetch right now. Try again later!") //shows on display for user
+
+      /*
+    If fetch call directly fails, and we do not get response object then the flow will come to catch block straight
+    Suppose the url is wrong then we do not even get response object
+    at that very moment try block execution stops and the flow is forwarded to catch block
+    to handle the error gracefully, so that the app doesnt crash
+    
+    But if the call is succefull but we get status outside of 200 range, then we need
+    to handle it explicitly if we want, otherwise the flow will go to catch block
+    */
+    }
   }
 );
 
 export const addTaskAsync = createAsyncThunk(
   "tasks/addTaskAsync",
-  async (newTask) => {
+  async (newTask,{rejectWithValue}) => {
+try{
+
     const response = await fetch(API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" }, //not case-sensitive but important for fetch() 
       body: JSON.stringify(newTask),
     });
-    if (!response.ok) throw new Error("Failed to add task");
-    return await response.json();
+    
+    // Check if the response is OK (2xx range)
+    if (!response.ok) {
+      // Throw an error with the status code and message for debugging
+      throw new Error(`Failed to add blog task: ${response.statusText}, Status code: ${response.status}`);
+    }
+
+    // Parse the JSON response from the server
+    const data = await response.json();
+    console.log("from POST: ", data);
+
+    return data; //this has additional id property comes from server
+  }catch(err){
+
+    console.error("Error while adding new blog:", err.message);
+
+    // throw err //throw err to stop app from crashing
+
+    return rejectWithValue("Sorry, Failed to add a new blog") 
+
+
+  }
   }
 );
 
 export const updateTaskAsync = createAsyncThunk(
   "tasks/updateTaskAsync",
-  async ({ id, updatedTask }) => {
+  async ({ id, updatedTask },{rejectWithValue}) => {
+
+    try{
+
+    
     const response = await fetch(`${API_URL}/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedTask),
     });
-    if (!response.ok) throw new Error("Failed to update task");
-    return await response.json();
+    if (!response.ok) {
+      throw new Error(
+        `Failed to update blog: ${response.statusText}, Status code: ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+    console.log("from PUT: ", data);
+    return data;
+  }catch(err){
+
+    console.error("Error in PUT request:", err.message);
+    
+    return rejectWithValue('Sorry, Failed to update the blog!')
+
+  }
   }
 );
 
 export const deleteTaskAsync = createAsyncThunk(
   "tasks/deleteTaskAsync",
-  async (id) => {
+  async (id,{rejectWithValue}) => {
+    try{
+
+    
     const response = await fetch(`${API_URL}/${id}`, {
       method: "DELETE",
     });
-    if (!response.ok) throw new Error("Failed to update task");
+    if (!response.ok) {
+      throw new Error(
+        `Failed to update blog: ${response.statusText}, Status code: ${response.status}`
+      );
+    }
+
+    console.log("from DELETE: ", id);
 
     return id;
+  }catch(err){
+    console.log("Error while deleting: ", err.message)
+
+    return rejectWithValue("Failed to delete, Try again later")
+  }
   }
 );
 
 export const updateReadStatusAsync = createAsyncThunk(
   "tasks/updateReadStatusAsync",
-  async ({ id, updatedTask }) => {
+  async ({ id, updatedTask },{rejectWithValue}) => {
+    try{
+
+    
     const response = await fetch(`${API_URL}/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedTask),
     });
 
-    if (!response.ok) throw new Error("Failed to update read status");
-    return await response.json();
+    if (!response.ok) {
+      throw new Error(
+        `Failed to update blog: ${response.statusText}, Status code: ${response.status}`
+      );
+    }
+    const data = await response.json();
+    console.log('Updated reading status: ', data)
+    return data
+
+  }catch(err){
+    console.log("Failed to update reading status: " ,err.message)
+
+    return rejectWithValue("Failed to update reading status, retry later")
+  }
   }
 );
 
@@ -67,7 +174,7 @@ const tasksSlice = createSlice({
   name: "tasks",
   initialState: {
     isLoading: false,
-    isError: false,
+    isError: null,
     taskList: [],
   },
   reducers: {},
@@ -81,9 +188,9 @@ const tasksSlice = createSlice({
         state.isLoading = false;
         state.taskList = action.payload;
       })
-      .addCase(fetchTasksAsync.rejected, (state) => {
+      .addCase(fetchTasksAsync.rejected, (state,action) => {
         state.isLoading = false;
-        state.isError = true;
+        state.isError = action.payload;
       });
 
     builder
@@ -95,9 +202,9 @@ const tasksSlice = createSlice({
         state.isLoading = false;
         state.taskList.push(action.payload);
       })
-      .addCase(addTaskAsync.rejected, (state) => {
+      .addCase(addTaskAsync.rejected, (state,action) => {
         state.isLoading = false;
-        state.isError = true;
+        state.isError = action.payload;
       });
 
     builder
@@ -114,9 +221,9 @@ const tasksSlice = createSlice({
           state.taskList[index] = action.payload;
         }
       })
-      .addCase(updateTaskAsync.rejected, (state) => {
+      .addCase(updateTaskAsync.rejected, (state,action) => {
         state.isLoading = false;
-        state.isError = true;
+        state.isError = action.payload;
       });
 
     builder
@@ -130,9 +237,9 @@ const tasksSlice = createSlice({
           (task) => task.id !== action.payload
         );
       })
-      .addCase(deleteTaskAsync.rejected, (state) => {
+      .addCase(deleteTaskAsync.rejected, (state,action) => {
         state.isLoading = false;
-        state.isError = true;
+        state.isError = action.payload;
       });
 
     builder
@@ -149,96 +256,12 @@ const tasksSlice = createSlice({
           state.taskList[index] = action.payload;
         }
       })
-      .addCase(updateReadStatusAsync.rejected, (state) => {
+      .addCase(updateReadStatusAsync.rejected, (state,action) => {
         state.isLoading = false;
-        state.isError = true;
+        state.isError = action.payload;
       });
   },
 });
 
 // export const { setTasks, addTask, updateTask, deleteTask,setLoading,setError } = tasksSlice.actions;
 export default tasksSlice.reducer;
-
-
-
-//Thunk function
-/*
-A thunk is a function that gets dispatched like a regular action but allows you to perform side effects,
- such as making an API call, before dispatching a result action to update the Redux store.
-
-When you dispatch a createAsyncThunk function (e.g., fetchTasksAsync()), it doesn't directly go to the reducer. 
-Instead, createAsyncThunk acts as a middleware, runs the async logic, and then dispatches actions like pending, fulfilled, or rejected.
-
-createAsyncThunk helps you avoid writing middleware or managing multiple actions manually.
-It simplifies the process of handling async code in Redux.
-
-
-
- Redux Toolkit automatically generates three action types from this:
-"tasks/fetchTasksAsync/pending"
-"tasks/fetchTasksAsync/fulfilled"
-"tasks/fetchTasksAsync/rejected"
-
-syntax:
-
- createAsyncThun(sliceName/thunkFunctionName,async (payloadCreator)=> {
-      fetch logic
-  })
-
-  here payloadCreator is payload we pass to dispatch(thunkFuncName(payload)) in component
-
-
-console.log(fetchTasksAsync)
-this gives the thunk function definition
-
-This is because fetchTasksAsync is a function created by createAsyncThunk.
-here createAsyncThunk acts as a function factory
-
-
-console.log(fetchTasksAsync())
-this gives us the return value of thunk function
-which is usually a promise
-
-The promise resolves when the async operation inside the thunk finishes (success or failure).
-
-once that promise is fulfilled then that value is used in
-
-.addCase(fetchTasksAsync.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.taskList = action.payload;
-        })
-
-HERE:
-
-addCase is a method attached to the builder object, 
-it is available in the extraReducers function of a createSlice or createReducer 
-
-this method takes action type or action creator and reducer function as args
-and updates the state based on that 
-
-here,
-
-fetchTasksAsync.fulfilled this is shorthand for 
-"tasks/fetchTasksAsync/fulfilled"
-both will work. but its better to handle it through shorthand
-
-
-
-FLOW:
-
-A user interaction triggers an action
-
-The action is sent to the store using dispatch.
-
-If it's an async action (like createAsyncThunk), middleware intercepts it
-Middleware handles the async logic and dispatches pending, fulfilled, or rejected actions as needed.
-
-The store forwards the action to the relevant reducer (sync) or extra reducer (async).
-Based on the action type (e.g., pending, fulfilled, rejected), the reducer updates the state.
-
-As the reducer updates the state. The new state is recognised by store
-
-Components which are subscribed to store using useSelector automatically re-render
-(because state changed)
-
-*/
